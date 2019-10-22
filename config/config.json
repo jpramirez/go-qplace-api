@@ -4,6 +4,7 @@
     "appname":"go-qplace-api",
     "logfile":"gogif-server.log",
     "uploadfolder":"./upload/",
+    "databasename":"qplace.db",
     "keyfile":"./extras/ssl/server.key",
     "crtfile":"./extras/ssl/server.crt",
     "audioformats": ["audio/wave","application/octet-stream","audio/mp4","audio/wav","audio/ogg","audio/vnd.wav","audio/mpeg","audio/mid"]

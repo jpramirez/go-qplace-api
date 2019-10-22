@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	models "github.com/jpramirez/go-qplace-api/pkg/models"
+	"github.com/jpramirez/go-qplace-api/pkg/storage"
 	webapp "github.com/jpramirez/go-qplace-api/web/app"
 )
 
@@ -40,7 +41,7 @@ func (W *WebOne) StartServer() {
 //NewWebAgent creates new instance.
 func NewWebAgent(config models.Config, BuildVersion string, BuidTime string) (WebOne, error) {
 	var webone WebOne
-	log.Println("Starting Go Gif Go")
+	log.Println("Starting Go Quiet Place ")
 	log.Println("Version : " + BuildVersion)
 	log.Println("Build Time : " + BuidTime)
 
@@ -54,8 +55,13 @@ func NewWebAgent(config models.Config, BuildVersion string, BuidTime string) (We
 
 //New creates a new handler
 func (W *WebOne) New() http.Handler {
-
-	app, err := webapp.NewApp(W.webConfig)
+	log.Println("Opening Database")
+	//STAGE 2 Open Database
+	DBClient := storage.Client{}
+	//Include datbase separators
+	DB := DBClient.OpenBoltDb("./data", W.webConfig.DatabaseName)
+	DB.Seed()
+	app, err := webapp.NewApp(W.webConfig, DB)
 
 	if err != nil {
 		log.Fatalln("Error creating WebApp", err)
@@ -63,8 +69,11 @@ func (W *WebOne) New() http.Handler {
 	}
 	api := app.Mux.PathPrefix("/api/v1").Subrouter()
 	// API Calls
-	api.HandleFunc("/upload", app.UploadHandler)
+	api.HandleFunc("/process/{ProcessType}/upload", app.UploadHandler)
 	api.HandleFunc("/liveness", app.Liveness)
+	api.HandleFunc("/login", app.V1Login)
+	api.HandleFunc("/logout", app.V1Logout)
+
 	ch := make(chan os.Signal, 2)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go func() {

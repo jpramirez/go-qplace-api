@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	models "github.com/jpramirez/go-qplace-api/pkg/models"
@@ -18,4 +19,9 @@ func LoadConfiguration(file string) (models.Config, error) {
 	jsonParser := json.NewDecoder(configFile)
 	jsonParser.Decode(&config)
 	return config, err
+}
+
+//DebugMessage will just be use to ease message control.
+func DebugMessage(message string) {
+	fmt.Printf(message)
 }
