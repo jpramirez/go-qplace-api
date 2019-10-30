@@ -1,8 +1,8 @@
 {
-    "webport":"5335",
+    "webport":"443",
     "webaddress":"0.0.0.0",
     "appname":"go-qplace-api",
-    "logfile":"gogif-server.log",
+    "logfile":"qplace-server.log",
     "uploadfolder":"./upload/",
     "databasename":"qplace.db",
     "keyfile":"./extras/ssl/server.key",

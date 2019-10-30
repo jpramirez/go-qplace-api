@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/handlers"
 	models "github.com/jpramirez/go-qplace-api/pkg/models"
 	"github.com/jpramirez/go-qplace-api/pkg/storage"
 	webapp "github.com/jpramirez/go-qplace-api/web/app"
@@ -25,7 +24,7 @@ func (W *WebOne) StartServer() {
 	handler := W.New()
 
 	srv := &http.Server{
-		Handler:      handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(handlers.LoggingHandler(os.Stdout, handler)),
+		Handler:      handler,
 		Addr:         W.webConfig.WebAddress + ":" + W.webConfig.WebPort,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
@@ -73,6 +72,8 @@ func (W *WebOne) New() http.Handler {
 	api.HandleFunc("/liveness", app.Liveness)
 	api.HandleFunc("/login", app.V1Login)
 	api.HandleFunc("/logout", app.V1Logout)
+	api.HandleFunc("/create/user", app.V1CreateUser)
+	api.HandleFunc("/{agent}/files", app.V1GetAllFiles)
 
 	ch := make(chan os.Signal, 2)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)

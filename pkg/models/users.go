@@ -14,7 +14,7 @@ type User struct {
 
 //JSONLogin for support login only
 type JSONLogin struct {
-	UserName string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -23,4 +23,12 @@ type JSONResponseUsers struct {
 	ResponseCode string
 	Message      string
 	ResponseData []User
+}
+
+//JSONCreateUser for creating rest post user creation
+type JSONCreateUser struct {
+	UserName  string `json:"username"`
+	Password  string `json:"password"`
+	Email     string `json:"email"`
+	CellPhone string `json:"cellphone"`
 }

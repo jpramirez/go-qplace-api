@@ -77,13 +77,17 @@ func (bc *Client) initializeBucket() {
 		if err != nil {
 			return fmt.Errorf("could not create weight bucket: %v", err)
 		}
-		_, err = root.CreateBucketIfNotExists([]byte("Agents"))
+		_, err = root.CreateBucketIfNotExists([]byte("Payloads"))
 		if err != nil {
 			return fmt.Errorf("could not create Agents bucket: %v", err)
 		}
 		_, err = root.CreateBucketIfNotExists([]byte("Registry"))
 		if err != nil {
 			return fmt.Errorf("could not create Registry bucket: %v", err)
+		}
+		_, err = root.CreateBucketIfNotExists([]byte("Tokens"))
+		if err != nil {
+			return fmt.Errorf("could not create Tokens bucket: %v", err)
 		}
 		return nil
 
@@ -92,25 +96,83 @@ func (bc *Client) initializeBucket() {
 		fmt.Printf("%s", err.Error())
 	}
 
-	var tempUser models.User
-	// or error handling
+	var adminToken models.Token
 	u2, err := uuid.NewV4()
 	if err != nil {
 		log.Println("UserAdd -> Something went wrong: ", err)
 		return
 	}
-	tempUser.Username = "root"
-	tempUser.Email = "jramirez@epyphite.com"
-	tempUser.Password = []byte("qplace2020!!") //Default Password CHANGE IN PROD
-	tempUser.UserID = u2.String()
-	tempUser.Token = ""
-	tempUser.Approved = false
-	tempUser.Banned = true
-	tempUser.Role = "Admin"
-	err = bc.UserAdd(tempUser)
+	now := time.Now()
+	adminToken.TokenID = u2.String()
+	adminToken.IsAdmin = true
+	adminToken.TimeStamp = now.UnixNano()
+	bc.TokenAdd(adminToken)
+
+	fmt.Println("A new Administation token has been added, use it to create System users")
+	fmt.Println(adminToken.TokenID)
+	/*
+		var tempUser models.User
+		// or error handling
+		u2, err := uuid.NewV4()
+		if err != nil {
+			log.Println("UserAdd -> Something went wrong: ", err)
+			return
+		}
+		tempUser.Username = "root"
+		tempUser.Email = "jramirez@epyphite.com"
+		tempUser.Password = []byte("qplace2020!!") //Default Password CHANGE IN PROD
+		tempUser.UserID = u2.String()
+		tempUser.Token = ""
+		tempUser.Approved = false
+		tempUser.Banned = true
+		tempUser.Role = "Admin"
+		err = bc.UserAdd(tempUser)
+		if err != nil {
+			fmt.Printf("%s", err.Error())
+		}
+	*/
+}
+
+//CheckToken for checkig validity of admin token
+func (bc *Client) CheckToken(tokenstring string) (models.Token, error) {
+	var _token models.Token
+	err := bc.boltDB.View(func(tx *bolt.Tx) error {
+		// Assume bucket exists and has keys
+
+		b := tx.Bucket([]byte("qplace")).Bucket([]byte("users"))
+
+		c := b.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var token models.Token
+			json.Unmarshal(v, &token)
+			if token.TokenID == tokenstring {
+
+				_token = token
+			}
+
+		}
+		return nil
+	})
+	return _token, err
+}
+
+//TokenAdd will add a token to the tokens bucket
+func (bc *Client) TokenAdd(token models.Token) error {
+	//log.Println("UserAdd --> password ", user.Password)
+	tokenBytes, err := json.Marshal(&token)
+
 	if err != nil {
-		fmt.Printf("%s", err.Error())
+		return fmt.Errorf("could not marshal config proto: %v", err)
 	}
+	err = bc.boltDB.Update(func(tx *bolt.Tx) error {
+		err = tx.Bucket([]byte("qplace")).Bucket([]byte("users")).Put([]byte(token.TokenID), tokenBytes)
+		if err != nil {
+			fmt.Printf("%s", err.Error())
+			return fmt.Errorf("could not set Token: %v", err)
+		}
+		return nil
+	})
+	return nil
 }
 
 //UserAdd will add a user using models.users
@@ -127,7 +189,7 @@ func (bc *Client) UserAdd(user models.User) error {
 	}
 
 	user.UserID = u2.String()
-	user.Token = c.CreateHash(user.Username)
+	user.Token = c.CreateHash(user.Email)
 
 	user.Password, _ = bcrypt.GenerateFromPassword(user.Password, bcrypt.DefaultCost)
 	//log.Println("UserAdd --> password ", user.Password)
@@ -137,7 +199,7 @@ func (bc *Client) UserAdd(user models.User) error {
 		return fmt.Errorf("could not marshal config proto: %v", err)
 	}
 	err = bc.boltDB.Update(func(tx *bolt.Tx) error {
-		err = tx.Bucket([]byte("qplace")).Bucket([]byte("users")).Put([]byte(user.Username), userBytes)
+		err = tx.Bucket([]byte("qplace")).Bucket([]byte("users")).Put([]byte(user.Email), userBytes)
 		if err != nil {
 			fmt.Printf("%s", err.Error())
 			return fmt.Errorf("could not set USER: %v", err)
@@ -161,7 +223,7 @@ func (bc *Client) CheckUserCExists(user *models.User) (*models.User, error) {
 
 	var iuser models.User
 	err := bc.boltDB.View(func(tx *bolt.Tx) error {
-		iochhash := tx.Bucket([]byte("qplace")).Bucket([]byte("users")).Get([]byte(user.Username))
+		iochhash := tx.Bucket([]byte("qplace")).Bucket([]byte("users")).Get([]byte(user.Email))
 		if len(iochhash) > 0 {
 			var err error
 			iuser, err = decodeUser(iochhash)
@@ -181,7 +243,7 @@ func (bc *Client) CheckUser(user models.User) (models.User, bool, error) {
 
 	var iuser models.User
 	err := bc.boltDB.View(func(tx *bolt.Tx) error {
-		iochhash := tx.Bucket([]byte("qplace")).Bucket([]byte("users")).Get([]byte(user.Username))
+		iochhash := tx.Bucket([]byte("qplace")).Bucket([]byte("users")).Get([]byte(user.Email))
 		if len(iochhash) > 0 {
 			var err error
 			iuser, err = decodeUser(iochhash)
@@ -226,4 +288,20 @@ func (bc *Client) CheckUserByID(userID string) (models.User, error) {
 		return nil
 	})
 	return _user, err
+}
+
+//PayloadAdd Adds a new discovered agent.
+func (bc *Client) PayloadAdd(payload models.Payload) (models.Payload, error) {
+
+	payloadBytes, err := json.Marshal(payload)
+
+	err = bc.boltDB.Update(func(tx *bolt.Tx) error {
+		err = tx.Bucket([]byte("iochu")).Bucket([]byte("Agents")).Put([]byte(payload.PayloadID), payloadBytes)
+		if err != nil {
+			log.Printf("%s", err.Error())
+			return fmt.Errorf("could not set Agent: %v", err)
+		}
+		return nil
+	})
+	return payload, nil
 }

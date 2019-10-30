@@ -11,6 +11,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	uuid "github.com/satori/go.uuid"
+
 	models "github.com/jpramirez/go-qplace-api/pkg/models"
 	storage "github.com/jpramirez/go-qplace-api/pkg/storage"
 )
@@ -97,6 +99,36 @@ func renderError(w http.ResponseWriter, message string, statusCode int) {
 	w.Write([]byte(message))
 }
 
+//V1GetAllFiles will get all files for the logged user
+func (M *MainWebApp) V1GetAllFiles(w http.ResponseWriter, r *http.Request) {
+
+	setupResponse(&w, r)
+
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	vars := mux.Vars(r)
+
+	userID := vars["userid"]
+
+	var response JResponse
+	response.ResponseCode = "200 OK"
+	response.Message = "alive"
+	response.ResponseData = []byte("")
+	js, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "Application/json")
+	w.Write(js)
+}
+
 //UploadHandler is in charge of optimizing upload request
 func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -104,15 +136,21 @@ func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	if M.CheckSession(w, r) == false {
+		http.Error(w, "unauthorised", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 
 	processType := vars["ProcessType"]
 
-	fmt.Println(processType)
+	log.Println(processType)
 	allowedContent := M.Config.AudioFormats
 	reader, err := r.MultipartReader()
 
-	fmt.Println(err)
+	log.Println(err)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -134,12 +172,12 @@ func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		filestatus.FileName = part.FileName()
-		fmt.Println("Processing file")
+		log.Println("Processing file")
 
 		dst, err := os.Create(M.Config.UploadFolder + filestatus.FileName)
 		defer dst.Close()
 		if err != nil {
-			fmt.Println("Error opening file")
+			log.Println("Error opening file")
 
 			//http.Error(w, err.Error(), http.StatusInternalServerError)
 			//Error Opening the file skip iteration
@@ -148,21 +186,21 @@ func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		buffer := make([]byte, 512)
 		_cbytes, err := part.Read(buffer)
 		//Here we send only 512 bytes to detect the right type
-		fmt.Println("Processing content type")
+		log.Println("Processing content type")
 
 		content, err := GetFileContentType(buffer)
 		allowed := false
 		for _, i := range allowedContent {
-			fmt.Println(i)
+			log.Println(i)
 
 			if i == content {
-				fmt.Println("Allowed Content")
+				log.Println("Allowed Content")
 				allowed = true
 				break
 			}
 		}
 
-		fmt.Println("Processing allowed ?", content)
+		log.Println("Processing allowed ?", content)
 
 		if !allowed {
 			continue
@@ -189,7 +227,6 @@ func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Println("\n Saving Payload ID", payload.PayloadID)
 				dst.Close()
 				payload.CalculateHASH()
-				//_ = payload.Recongnize()
 				filestatus.Hash = payload.FileHash
 				filestatus.Status = "Uploaded"
 				payload.ProcessPayload(processType)
@@ -252,49 +289,53 @@ func (M *MainWebApp) Liveness(w http.ResponseWriter, r *http.Request) {
 
 //V1Login main login function to keep also store
 func (M *MainWebApp) V1Login(w http.ResponseWriter, r *http.Request) {
+	log.Println("Getting response before options")
+
+	setupResponse(&w, r)
+
+	log.Println("Getting response before options")
+	if r.Method == "OPTIONS" {
+		return
+	}
 	if r.Method != "POST" {
 		w.Header().Set("Allow", "POST")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	var err error
+
 	session, err := M.Store.Get(r, "qplace-go-session")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 
 	var _user models.JSONLogin
-
 	var user models.User
 	err = json.NewDecoder(r.Body).Decode(&_user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(_user.UserName)
+	fmt.Println("User ", _user.Email)
 
-	user.Username = _user.UserName
+	user.Email = _user.Email
 	user.Password = []byte(_user.Password)
 
 	user, auth, err := M.storage.CheckUser(user)
 
-	fmt.Println("DEBUG")
-	fmt.Println(user)
-	fmt.Println(auth)
-	fmt.Println(err)
 	if err != nil {
-		var response JResponse
-		response.ResponseCode = "201"
-		response.Message = "incorrect Username or Password "
-		response.ResponseData = []byte("")
-		jresponse, err := json.Marshal(response)
-
+		/*
+			var response JResponse
+			response.ResponseCode = "201"
+			response.Message = "incorrect Username or Password "
+			response.ResponseData = []byte("")
+			jresponse, err := json.Marshal(response)
+		*/
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
 		w.Header().Set("Content-Type", "Application/json")
-		w.Write(jresponse)
+		//w.Write(jresponse)
+		http.Error(w, "Not authorized", 401)
+
 		return
 	}
 	if auth {
@@ -310,7 +351,7 @@ func (M *MainWebApp) V1Login(w http.ResponseWriter, r *http.Request) {
 		jresponse, err := json.Marshal(response)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
 		w.Header().Set("Content-Type", "Application/json")
@@ -327,18 +368,23 @@ func (M *MainWebApp) V1Login(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 
-		var response JResponse
-		response.ResponseCode = "201"
-		response.Message = "incorrect Username or Password "
-		response.ResponseData = []byte("")
-		jresponse, err := json.Marshal(response)
+		/*
+			var response JResponse
+			response.ResponseCode = "201"
+			response.Message = "incorrect Username or Password "
+			response.ResponseData = []byte("")
+			jresponse, err := json.Marshal(response)
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "Application/json")
-		w.Write(jresponse)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "Application/json")
+			w.Write(jresponse)
+		*/
+		http.Error(w, err.Error(), http.StatusForbidden)
+
 		return
 	}
 
@@ -346,6 +392,7 @@ func (M *MainWebApp) V1Login(w http.ResponseWriter, r *http.Request) {
 
 //V1Logout destro session
 func (M *MainWebApp) V1Logout(w http.ResponseWriter, r *http.Request) {
+	setupResponse(&w, r)
 	if r.Method != "GET" {
 		w.Header().Set("Allow", "GET")
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -364,6 +411,8 @@ func (M *MainWebApp) V1Logout(w http.ResponseWriter, r *http.Request) {
 
 //CheckSession validates that user has a session active
 func (M *MainWebApp) CheckSession(w http.ResponseWriter, r *http.Request) bool {
+	setupResponse(&w, r)
+
 	session := M.getSession(w, r)
 	// MOCK function we should add server status , this is a TEST WIP TODO session
 
@@ -381,7 +430,7 @@ func (M *MainWebApp) CheckSession(w http.ResponseWriter, r *http.Request) bool {
 		http.Error(w, "unauthorised", http.StatusUnauthorized)
 		return false
 	}
-	if user.Username == "" {
+	if user.Email == "" {
 		log.Println("Session Failed to renew or Expired")
 		http.Error(w, "unauthorised", http.StatusUnauthorized)
 		return false
@@ -390,4 +439,109 @@ func (M *MainWebApp) CheckSession(w http.ResponseWriter, r *http.Request) bool {
 	M.Store.MaxAge(3600) // renew session 1 Minute
 	M.Store.Save(r, w, session)
 	return true
+}
+
+//V1CreateUser destro session
+func (M *MainWebApp) V1CreateUser(w http.ResponseWriter, r *http.Request) {
+	setupResponse(&w, r)
+
+	if r.Method == "OPTIONS" {
+		return
+	}
+	if r.Method != "POST" {
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var response JResponse
+	log.Printf(r.Header.Get("AdminToken"))
+	log.Println(r.Header)
+
+	_token := r.Header.Get("AdminToken")
+
+	if _token != "" {
+		token, err := M.storage.CheckToken(_token)
+		fmt.Println(token != (models.Token{}))
+		fmt.Println(err)
+
+		if err != nil {
+			fmt.Println("Error ", err)
+		}
+		if token != (models.Token{}) {
+			if token.IsAdmin {
+
+				var _user models.JSONCreateUser
+
+				err = json.NewDecoder(r.Body).Decode(&_user)
+
+				var tempUser models.User
+				// or error handling
+				u2, err := uuid.NewV4()
+				if err != nil {
+					response.ResponseCode = "401"
+					response.Message = "Error Creating user "
+					response.ResponseData = []byte("")
+				}
+				tempUser.Username = _user.UserName
+				tempUser.Email = _user.Email
+				tempUser.Password = []byte(_user.Password) //Default Password CHANGE IN PROD
+				tempUser.UserID = u2.String()
+				tempUser.Token = ""
+				tempUser.Approved = false
+				tempUser.Banned = true
+				tempUser.Role = "Admin"
+				err = M.storage.UserAdd(tempUser)
+				if err != nil {
+					response.ResponseCode = "401"
+					response.Message = "Error Creating user "
+					response.ResponseData = []byte("")
+				}
+				response.ResponseCode = "201"
+				response.Message = "User Created"
+				response.ResponseData = []byte("")
+			} else {
+				response.ResponseCode = "401"
+				response.Message = "Token is not admin"
+				response.ResponseData = []byte("")
+			}
+		} else {
+			response.ResponseCode = "401"
+			response.Message = "Error Creating user, token not found "
+			response.ResponseData = []byte("")
+		}
+
+	} else {
+		response.ResponseCode = "201"
+		response.Message = "Error Creating user "
+		response.ResponseData = []byte("")
+	}
+	jresponse, err := json.Marshal(response)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "Application/json")
+	if response.ResponseCode == "401" {
+		fmt.Println("Value of erro ", err)
+		fmt.Println("Response Message ", response.Message)
+		http.Error(w, "Not authorized", 401)
+
+	} else {
+		w.Write(jresponse)
+	}
+
+	return
+
+}
+
+func setupResponse(w *http.ResponseWriter, req *http.Request) {
+	log.Println("setting up")
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "admintoken, Content,Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
