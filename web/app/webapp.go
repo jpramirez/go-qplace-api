@@ -12,6 +12,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	uuid "github.com/satori/go.uuid"
+	"html/template"
+	"strings"
+	"github.com/gorilla/csrf"
 
 	models "github.com/jpramirez/go-qplace-api/pkg/models"
 	storage "github.com/jpramirez/go-qplace-api/pkg/storage"
@@ -115,6 +118,7 @@ func (M *MainWebApp) V1GetAllFiles(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	userID := vars["userid"]
+	fmt.Println("userID ",userID)
 
 	var response JResponse
 	response.ResponseCode = "200 OK"
@@ -535,6 +539,19 @@ func (M *MainWebApp) V1CreateUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
+
+
+func (M *MainWebApp) HandleIndex(w http.ResponseWriter, r *http.Request) {
+
+	t := template.Must(template.New("").ParseGlob("templates/*.html"))
+	t.ExecuteTemplate(w, "index.html", map[string]interface{}{
+		csrf.TemplateTag: csrf.TemplateField(r),
+		"Stage":          os.Getenv("UP_STAGE"),
+		"Year":           time.Now().Format("2006"),
+		"EmojiCountry":   countryFlag(strings.Trim(r.Header.Get("Cloudfront-Viewer-Country"), "[]")),
+	})
+}
+
 func setupResponse(w *http.ResponseWriter, req *http.Request) {
 	log.Println("setting up")
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
@@ -544,4 +561,14 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) {
 
 func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
+
+func countryFlag(x string) string {
+	if len(x) != 2 {
+		return ""
+	}
+	if x[0] < 'A' || x[0] > 'Z' || x[1] < 'A' || x[1] > 'Z' {
+		return ""
+	}
+	return string(0x1F1E6+rune(x[0])-'A') + string(0x1F1E6+rune(x[1])-'A')
 }

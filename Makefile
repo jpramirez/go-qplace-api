@@ -24,6 +24,8 @@ check-env:
 	cp -R config $(BUILD_FOLDER)/dist/arm/
 	cp -R config $(BUILD_FOLDER)/dist/osx/
 	cp -R extras $(BUILD_FOLDER)/dist/linux/
+	cp -R templates $(BUILD_FOLDER)/dist/linux/
+
 
 
 
@@ -51,7 +53,7 @@ build/weblayer-linux:
 
 
 run/dev:
-	cd build/dist/linux && bin/Wanpan --config config/config.json
+	cd build/dist/linux && bin/${BINARY_NAME_SERVER} --config config/config.json
 
 build/dev: check-env build/weblayer-linux run/dev
 
