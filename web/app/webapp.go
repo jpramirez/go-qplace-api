@@ -4,17 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
+	"html/template"
+	"strings"
+
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	uuid "github.com/satori/go.uuid"
-	"html/template"
-	"strings"
-	"github.com/gorilla/csrf"
 
 	models "github.com/jpramirez/go-qplace-api/pkg/models"
 	storage "github.com/jpramirez/go-qplace-api/pkg/storage"
@@ -118,143 +121,12 @@ func (M *MainWebApp) V1GetAllFiles(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	userID := vars["userid"]
-	fmt.Println("userID ",userID)
+	fmt.Println("userID ", userID)
 
 	var response JResponse
 	response.ResponseCode = "200 OK"
 	response.Message = "alive"
 	response.ResponseData = []byte("")
-	js, err := json.Marshal(response)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "Application/json")
-	w.Write(js)
-}
-
-//UploadHandler is in charge of optimizing upload request
-func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	if M.CheckSession(w, r) == false {
-		http.Error(w, "unauthorised", http.StatusUnauthorized)
-		return
-	}
-
-	vars := mux.Vars(r)
-
-	processType := vars["ProcessType"]
-
-	log.Println(processType)
-	allowedContent := M.Config.AudioFormats
-	reader, err := r.MultipartReader()
-
-	log.Println(err)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var response JResponseFileStatus
-
-	for {
-		var payload models.Payload
-		var filestatus ResponseFileStatus
-
-		part, err := reader.NextPart()
-		if err == io.EOF {
-			break
-		}
-		//if part.FileName() is empty, skip this iteration.
-		if part.FileName() == "" {
-			continue
-		}
-
-		filestatus.FileName = part.FileName()
-		log.Println("Processing file")
-
-		dst, err := os.Create(M.Config.UploadFolder + filestatus.FileName)
-		defer dst.Close()
-		if err != nil {
-			log.Println("Error opening file")
-
-			//http.Error(w, err.Error(), http.StatusInternalServerError)
-			//Error Opening the file skip iteration
-			continue
-		}
-		buffer := make([]byte, 512)
-		_cbytes, err := part.Read(buffer)
-		//Here we send only 512 bytes to detect the right type
-		log.Println("Processing content type")
-
-		content, err := GetFileContentType(buffer)
-		allowed := false
-		for _, i := range allowedContent {
-			log.Println(i)
-
-			if i == content {
-				log.Println("Allowed Content")
-				allowed = true
-				break
-			}
-		}
-
-		log.Println("Processing allowed ?", content)
-
-		if !allowed {
-			continue
-		}
-
-		payload, err = models.NewPayLoad(part.FileName(), content)
-		payload.StorageFolder = M.Config.UploadFolder
-		var read int64
-		var p float32
-
-		length := r.ContentLength
-		ticker := time.Tick(time.Millisecond) // <-- use this in production
-		//ticker := time.Tick(time.Second) // this is for demo purpose with longer delay
-		fmt.Println("Processing file uploading starting")
-
-		dst.Write(buffer[0:_cbytes])
-
-		for {
-
-			buffer := make([]byte, 100000)
-			cBytes, err := part.Read(buffer)
-			if err == io.EOF {
-				fmt.Printf("\n Last buffer read!")
-				fmt.Println("\n Saving Payload ID", payload.PayloadID)
-				dst.Close()
-				payload.CalculateHASH()
-				filestatus.Hash = payload.FileHash
-				filestatus.Status = "Uploaded"
-				payload.ProcessPayload(processType)
-				response.FileStatus = append(response.FileStatus, filestatus)
-				break
-			}
-			read = read + int64(cBytes)
-
-			if read > 0 {
-				p = float32(read*100) / float32(length)
-				//fmt.Printf("progress: %v \n", p)
-				<-ticker
-				fmt.Printf("\rUploading progress %v", p) // for console
-				dst.Write(buffer[0:cBytes])
-			} else {
-				break
-			}
-
-		}
-
-	}
-
-	response.ResponseCode = "200"
-	response.Message = "File Uploaded"
 	js, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -527,8 +399,6 @@ func (M *MainWebApp) V1CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "Application/json")
 	if response.ResponseCode == "401" {
-		fmt.Println("Value of erro ", err)
-		fmt.Println("Response Message ", response.Message)
 		http.Error(w, "Not authorized", 401)
 
 	} else {
@@ -539,8 +409,7 @@ func (M *MainWebApp) V1CreateUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-
-
+//HandleIndex for serving SPA
 func (M *MainWebApp) HandleIndex(w http.ResponseWriter, r *http.Request) {
 
 	t := template.Must(template.New("").ParseGlob("templates/*.html"))
@@ -550,6 +419,168 @@ func (M *MainWebApp) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		"Year":           time.Now().Format("2006"),
 		"EmojiCountry":   countryFlag(strings.Trim(r.Header.Get("Cloudfront-Viewer-Country"), "[]")),
 	})
+}
+
+//UploadHandler is in charge of optimizing upload request
+func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	/*
+		if M.CheckSession(w, r) == false {
+			http.Error(w, "unauthorised", http.StatusUnauthorized)
+			return
+		}
+	*/
+	vars := mux.Vars(r)
+	processType := vars["ProcessType"]
+
+	allowedContent := M.Config.AudioFormats
+	reader, err := r.MultipartReader()
+	if err != nil {
+		fmt.Println("Error Reading multipart Reader ", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var response JResponseFileStatus
+
+	for {
+		var payload models.Payload
+		var filestatus ResponseFileStatus
+
+		part, err := reader.NextPart()
+
+		if err == io.EOF {
+			break
+		}
+
+		var _user models.SubscriberUser
+		if part.Header["Content-Type"][0] == "application/json" {
+			jsonDecoder := json.NewDecoder(part)
+			err = jsonDecoder.Decode(&_user)
+			if err != nil {
+				log.Println("Error in reading metadata ", err)
+				continue
+			}
+			_, err = M.storage.SubscriberAdd(_user)
+			if err != nil {
+				log.Println("Error adding the user ", err)
+			}
+			continue
+		}
+
+		//if part.FileName() is empty, skip this iteration.
+		if part.FileName() == "" {
+			continue
+		}
+
+		filestatus.FileName = part.FileName()
+		//if extension is not WAV skip for now.
+		ext := filepath.Ext(filestatus.FileName)
+
+		if ext != ".wav" {
+			fmt.Printf("Processing file %s is no allowed yet !	 \n", ext)
+			filestatus.Status = "Rejected"
+			response.FileStatus = append(response.FileStatus, filestatus)
+			continue
+		}
+
+		dst, err := os.Create(M.Config.UploadFolder + filestatus.FileName)
+
+		defer dst.Close()
+		if err != nil {
+			log.Println("Error opening file")
+			continue
+		}
+
+		buffer := make([]byte, 512)
+		_cbytes, err := part.Read(buffer)
+
+		//Here we send only 512 bytes to detect the right type
+		content, err := GetFileContentType(buffer)
+		if err != nil {
+			log.Println("Error Getting Content ", err)
+		}
+		allowed := false
+		for _, i := range allowedContent {
+			if i == content {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			continue
+		}
+
+		payload, err = models.NewPayLoad(part.FileName(), content)
+		payload.StorageFolder = M.Config.UploadFolder
+		var read int64
+		var p float32
+
+		length := r.ContentLength
+		ticker := time.Tick(time.Millisecond) // <-- use this in production
+		//ticker := time.Tick(time.Second) // this is for demo purpose with longer delay
+		dst.Write(buffer[0:_cbytes])
+
+		for {
+
+			buffer := make([]byte, 100000)
+			cBytes, err := part.Read(buffer)
+			if err == io.EOF {
+				log.Println("Saving Payload ID", payload.PayloadID)
+				dst.Close()
+				payload.CalculateHASH()
+				filestatus.Hash = payload.FileHash
+				filestatus.Status = "Uploaded"
+				payload.ProcessPayload(processType)
+				_user.FileNames = append(_user.FileNames, filestatus.FileName)
+				//This call back suppose to update (key is the email)
+				M.storage.SubscriberAdd(_user)
+				response.FileStatus = append(response.FileStatus, filestatus)
+				break
+			}
+			read = read + int64(cBytes)
+
+			if read > 0 {
+				p = float32(read*100) / float32(length)
+				//fmt.Printf("progress: %v \n", p)
+				<-ticker
+				fmt.Printf("\rUploading progress %v", p) // for console
+				dst.Write(buffer[0:cBytes])
+			} else {
+				break
+			}
+
+		}
+
+	}
+
+	response.ResponseCode = "200"
+	response.Message = "File Uploaded"
+	js, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "Application/json")
+	w.Write(js)
+}
+
+func getMetadata(r *http.Request) ([]byte, error) {
+	f, _, err := r.FormFile("metadata")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metadata form file: %v", err)
+	}
+	metadata, errRead := ioutil.ReadAll(f)
+	if errRead != nil {
+		return nil, fmt.Errorf("failed to read metadata: %v", errRead)
+	}
+
+	return metadata, nil
 }
 
 func setupResponse(w *http.ResponseWriter, req *http.Request) {

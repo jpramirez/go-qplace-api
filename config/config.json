@@ -1,5 +1,5 @@
 {
-    "webport":"443",
+    "webport":"8888",
     "webaddress":"0.0.0.0",
     "appname":"go-qplace-api",
     "logfile":"qplace-server.log",
@@ -7,5 +7,5 @@
     "databasename":"qplace.db",
     "keyfile":"./extras/ssl/server.key",
     "crtfile":"./extras/ssl/server.crt",
-    "audioformats": ["audio/wave","application/octet-stream","audio/mp4","audio/wav","audio/ogg","audio/vnd.wav","audio/mpeg","audio/mid"]
+    "audioformats": ["audio/wave","audio/wav","audio/vnd.wav"]
 }

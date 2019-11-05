@@ -42,14 +42,18 @@ var ulidSource *ulid.MonotonicULIDsource
 func (P *Payload) ProcessPayload(process string) error {
 	var err error
 	fmt.Println("Process Payload Processing")
-
 	url := "http://localhost:3000/api/v1/process/" + process + "/" + P.FileHash
-	ret := P.sendPostRequest(url, P.StorageFolder+"/"+P.PayloadName, "files")
+	ext := filepath.Ext(P.PayloadName)
+	var ret []byte
+
+	//We send th extension
+	ret = P.sendPostRequest(url, P.StorageFolder+"/"+P.PayloadName, ext)
+
 	var _action PayloadAction
 
 	_action.ActionName = process
 
-	if process == "splitfile" {
+	if process == "split" {
 
 		dst, err := os.Create(P.StorageFolder + P.FileHash + ".zip") //We save the file from the return function
 		_, err = dst.Write(ret)
@@ -113,9 +117,11 @@ func (P *Payload) sendPostRequest(url string, filename string, filetype string) 
 	}
 	defer file.Close()
 
+	fmt.Println(file.Name())
+	fmt.Println("File type var ", filetype)
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile(filetype, filepath.Base(file.Name()))
+	part, err := writer.CreateFormFile("files", filepath.Base(file.Name()))
 
 	if err != nil {
 		fmt.Println(err)

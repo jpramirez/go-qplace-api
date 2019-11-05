@@ -89,6 +89,10 @@ func (bc *Client) initializeBucket() {
 		if err != nil {
 			return fmt.Errorf("could not create Tokens bucket: %v", err)
 		}
+		_, err = root.CreateBucketIfNotExists([]byte("Subscribers"))
+		if err != nil {
+			return fmt.Errorf("could not create Tokens bucket: %v", err)
+		}
 		return nil
 
 	})
@@ -296,7 +300,7 @@ func (bc *Client) PayloadAdd(payload models.Payload) (models.Payload, error) {
 	payloadBytes, err := json.Marshal(payload)
 
 	err = bc.boltDB.Update(func(tx *bolt.Tx) error {
-		err = tx.Bucket([]byte("iochu")).Bucket([]byte("Agents")).Put([]byte(payload.PayloadID), payloadBytes)
+		err = tx.Bucket([]byte("qplace")).Bucket([]byte("Payloads")).Put([]byte(payload.PayloadID), payloadBytes)
 		if err != nil {
 			log.Printf("%s", err.Error())
 			return fmt.Errorf("could not set Agent: %v", err)
@@ -304,4 +308,17 @@ func (bc *Client) PayloadAdd(payload models.Payload) (models.Payload, error) {
 		return nil
 	})
 	return payload, nil
+}
+
+//SubscriberAdd Adds a new discovered agent.
+func (bc *Client) SubscriberAdd(payload models.SubscriberUser) (models.SubscriberUser, error) {
+	subscriberUserBytes, err := json.Marshal(payload)
+	err = bc.boltDB.Update(func(tx *bolt.Tx) error {
+		err = tx.Bucket([]byte("qplace")).Bucket([]byte("Subscribers")).Put([]byte(payload.Email), subscriberUserBytes)
+		if err != nil {
+			return fmt.Errorf("could not set Subscriber: %v", err)
+		}
+		return nil
+	})
+	return payload, err
 }

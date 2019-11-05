@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,minimum-scale=1">
-<meta name="google-site-verification" content="nes2qFetoy9VgIjQlB6TPyQcbxJ8nhXxlhalc-3xid4" />
-<meta name="description" content="AWS Serverless professional services, training and consultancy, based in Singapore. Please make an enquiry."/>
-<title>Serverless professional services in Singapore</title>
+<meta name="description" content="Audio Professional Services. Editing."/>
+<title>Audio professional services</title>
 <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.min.js"></script>
 <style>
 body { font-family: "Segoe UI", "Seravek", sans-serif; margin: 0; }
 img, video { margin-top:1em; width: 100%; }
@@ -80,27 +80,40 @@ main {
 <body>
 <main>
 <div id="why">
-<h1>Why go serverless {{ .EmojiCountry }}?</h1>
+<h1>Why user our Service {{ .EmojiCountry }}?</h1>
 
-<p>You don't have to spend time administrating your servers. <br>No servers to manage? <strong>Serverless</strong></p>
+<p>You don't have to spend time editing audios, proofing, cutting. <br>z to manage? <strong>Serverless</strong></p>
 
-<ol>
+<ul>
 	<li>Improve security</li>
 	<li>Reduce costs</li>
 	<li>Reduce complexity</li>
 	<li>Scalable</li>
 	<li>Reliable</li>
 	<li>Deliver to your customers</li>
-</ol>
+</ul>
 
 And <strong>fast development iteration speeds</strong>!
-
+<!--
 <img src=https://s.natalian.org/2018-11-03/AWS_Certified_Logo_SOA_588x300_Black.png alt="AWS certified">
-
+-->
 </div>
+<div id="contact">
+<h3> Test out  our Service</h3>
+<form id="UploadForm" v-on:submit.prevent="submitForm">
+<input required type=text name=name id="name" placeholder="Full name" autofocus>
+<input required type=email name=email id="email" placeholder="email@example.com">
+<input type=file id='files' name="files" placeholder="File to split">
+{{ .csrfField }}
+<br>
+<button class="button" id="button" type="submit">Send</button>
+</form>
+</div>
+<!--
 <div id="video">
 <video poster="https://res.cloudinary.com/hendry/image/upload/f_auto,q_auto:eco/v1519267526/me_stj81s.jpg" width="640" height="360" controls src="https://s.natalian.org/2018-02-20/Goserverless.SG.mp4"></video>
 </div>
+-->
 
 <div id="product">
 
@@ -124,11 +137,11 @@ And <strong>fast development iteration speeds</strong>!
 <li>Multiple region handling</li>
 <li>Frustrated developers spending time on process and tools than on innovating</li>
 </ul>
-
+<!--
 <p>Connect on <a href="https://www.linkedin.com/in/kaihendry/">LinkedIn</a>, view <a href="https://hendry.iki.fi/cv/resume.html">my CV</a>, watch my <a
 	href="https://engineers.sg/episodes/search?search=kai+hendry">presentations</a>
 and <a href="https://www.youtube.com/playlist?list=PLiKgVPlhUNuxd4HSPoFBINxG53U5gmU6v">my videos on Serverless</a>.</p>
-
+-->
 </div>
 
 <div id="count">
@@ -138,14 +151,8 @@ and <a href="https://www.youtube.com/playlist?list=PLiKgVPlhUNuxd4HSPoFBINxG53U5
 <tr>
 <th>Rank</th>
 <th>Region name</th>
-<th>Service count</th>
-</tr>
-	<tr v-for="(region, index) in regions" v-bind:class="{ sg: region.name == 'ap-southeast-1' }">
-	<td>${ index + 1 }</td><td>${ region.name }</td><td>${ region.count }</td>
-</tr>
-</table>
 </div>
-
+<!--
 <div id="pricing">
 
 <h3>Estimating serverless costs of this demo</h3>
@@ -160,26 +167,12 @@ and <a href="https://www.youtube.com/playlist?list=PLiKgVPlhUNuxd4HSPoFBINxG53U5
 <p><a href="https://aws.amazon.com/api-gateway/pricing">API Gateway</a>: $4.25 per million = ${ gwcost }</p>
 <p>Outbound Data Transfer Costs: $0.12/GB = ${ outboundcost }</p>
 <p><strong>Total: ${ total } USD</strong></p>
-
+-->
 </div>
 
-<div id="contact">
-<h3>Contact form</h3>
-<form id="myForm" v-on:submit.prevent="submitForm">
-<input required type=text name=name placeholder="Full name" autofocus>
-<input required type=email name=email placeholder="email@example.com">
-<input required type=text name=organization placeholder="Organisation">
-<input type=tel name=tel placeholder="Telephone">
-<input type=url name=url placeholder="https://example.sg">
-<textarea rows=5 name="notes" placeholder="Prefer a callback? Please let me know a time good for you."></textarea>
-{{ .csrfField }}
-<br>
-<button class="button" id="button" type="submit">Send</button>
-</form>
-</div>
 <footer>
 <hr>
-<p>Go Serverless is a brand operating under © <a href="https://webconverger.com/">Webconverger Pte Ltd</a> 2007-{{ .Year }}, Company No. 201211208C, 30 Duxton Road #02-00, 089494, Singapore.</p>
+<p>A Quiet Place </p>
 </footer>
 </main>
 
@@ -188,16 +181,47 @@ var app = new Vue({
 	delimiters: ['${', '}'],
 	el: '#contact',
 	methods: {
-	submitForm: function (x) {
-		fetch('/', { method: 'POST',
-			headers: { "X-CSRF-Token": x.target.elements["gorilla.csrf.Token"].value },
-			credentials: 'same-origin',
-			body: new FormData(x.target) })
-		.then(() => {
-			var button = document.getElementById("button")
-			button.disabled = true
-			button.innerText = 'Sent!'
-		})
+	submitForm: function () {
+
+            /*
+                Add the form data we need to submit
+            */
+			var formData = new FormData();
+			/*
+			Iteate over any file sent over appending the files
+			to the form data.
+			*/
+			var fileForm  = document.getElementById('files');
+			var name  = document.getElementById('name').value;
+			var email  = document.getElementById('email').value;
+
+           var metadata = {
+                'name':  name,
+                'email': email
+            };
+
+            formData.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
+
+			console.log("Pass 1")
+			for( var i = 0; i < fileForm.files.length; i++ ){
+					let file = fileForm.files[i];
+					formData.append('files[' + i + ']', file);
+			}
+	
+				console.log(formData)
+			let url = '/api/v1/process/split/upload'
+			console.log("Pass 2")
+
+			axios.post( url,
+				formData,
+				).then(function(err){
+				console.log(err);
+				console.log('SUCCESS!!' + err);
+				})
+				.catch(function(err){
+				console.log('FAILURE!!' + err);
+				});
+
 	}
 	}
 })
@@ -210,8 +234,8 @@ var app = new Vue({
 	},
 	methods: {
 		async goGet () {
-			var response = await fetch("/rank");
-			this.regions = await response.json();
+			//var response = await fetch("/rank");
+			//this.regions = await response.json();
 		}
 	},
 	created: function() {
@@ -222,6 +246,7 @@ var app = new Vue({
 var app = new Vue({
 	delimiters: ['${', '}'],
 	el: '#pricing',
+	results: "",
 	data: {
 		requests: 100,
 		outbound: 0.01

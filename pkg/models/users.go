@@ -32,3 +32,11 @@ type JSONCreateUser struct {
 	Email     string `json:"email"`
 	CellPhone string `json:"cellphone"`
 }
+
+//SubscriberUser for the basic functionality implemeted
+type SubscriberUser struct {
+	Name      string   `json:"name"`
+	Email     string   `json:"email"`
+	FileNames []string `json:"filename"`
+	TimeStamp string   `json:"date"`
+}
