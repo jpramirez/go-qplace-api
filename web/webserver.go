@@ -69,15 +69,14 @@ func (W *WebOne) New() http.Handler {
 	// API Calls
 	api := app.Mux.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/process/{ProcessType}/upload", app.UploadHandler)
+	api.HandleFunc("/file/{fileID}", app.GetFile)
 	api.HandleFunc("/liveness", app.Liveness)
 	api.HandleFunc("/login", app.V1Login)
 	api.HandleFunc("/logout", app.V1Logout)
 	api.HandleFunc("/create/user", app.V1CreateUser)
 	api.HandleFunc("/{agent}/files", app.V1GetAllFiles)
 
-
-
-	app.Mux.HandleFunc("/",app.HandleIndex).Methods("GET")
+	app.Mux.HandleFunc("/", app.HandleIndex).Methods("GET")
 	ch := make(chan os.Signal, 2)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go func() {

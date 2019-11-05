@@ -310,6 +310,24 @@ func (bc *Client) PayloadAdd(payload models.Payload) (models.Payload, error) {
 	return payload, nil
 }
 
+func (bc *Client) PayloadGetByID(payloadID string) (models.Payload, error) {
+	var ipayload models.Payload
+	err := bc.boltDB.View(func(tx *bolt.Tx) error {
+		var err error
+		bPayload := tx.Bucket([]byte("qplace")).Bucket([]byte("Payloads")).Get([]byte(payloadID))
+		if len(bPayload) > 0 {
+			err = json.Unmarshal(bPayload, &ipayload)
+			if err != nil {
+				return fmt.Errorf("Bucket exists 1")
+			}
+			return nil
+		}
+		return err
+	})
+	return ipayload, err
+
+}
+
 //SubscriberAdd Adds a new discovered agent.
 func (bc *Client) SubscriberAdd(payload models.SubscriberUser) (models.SubscriberUser, error) {
 	subscriberUserBytes, err := json.Marshal(payload)

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"html/template"
@@ -421,6 +422,50 @@ func (M *MainWebApp) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//GetFile will get a file to the user by their ID remember that is the ULID here
+func (M *MainWebApp) GetFile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	fileID := vars["fileID"]
+	var uploadFolder = "./upload/"
+
+	payload, err := M.storage.PayloadGetByID(fileID)
+	if err != nil {
+		fmt.Println("Error Reading payload ", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fopen, err := os.Open(uploadFolder + payload.FileHash + ".zip")
+	if err != nil {
+		fmt.Println("Error Reading payload ", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	defer fopen.Close()
+
+	//Get the Content-Type of the file
+	//Create a buffer to store the header of the file in
+	FileHeader := make([]byte, 512)
+	//Copy the headers into the FileHeader buffer
+	fopen.Read(FileHeader)
+	//Get content type of file
+	FileContentType := http.DetectContentType(FileHeader)
+
+	//Get the file size
+	FileStat, _ := fopen.Stat()                        //Get info from file
+	FileSize := strconv.FormatInt(FileStat.Size(), 10) //Get file size as a string
+	//Send the headers
+	w.Header().Set("Content-Disposition", "attachment; filename="+payload.FileHash+".zip")
+	w.Header().Set("Content-Type", FileContentType)
+	w.Header().Set("Content-Length", FileSize)
+
+	//Send the file
+	//We read 512 bytes from the file already, so we reset the offset back to 0
+	fopen.Seek(0, 0)
+	io.Copy(w, fopen) //'Copy' the file to the client
+	return
+}
+
 //UploadHandler is in charge of optimizing upload request
 func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -534,12 +579,13 @@ func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 				log.Println("Saving Payload ID", payload.PayloadID)
 				dst.Close()
 				payload.CalculateHASH()
-				filestatus.Hash = payload.FileHash
+				filestatus.Hash = payload.PayloadID
 				filestatus.Status = "Uploaded"
 				payload.ProcessPayload(processType)
 				_user.FileNames = append(_user.FileNames, filestatus.FileName)
 				//This call back suppose to update (key is the email)
 				M.storage.SubscriberAdd(_user)
+				M.storage.PayloadAdd(payload)
 				response.FileStatus = append(response.FileStatus, filestatus)
 				break
 			}
@@ -560,7 +606,7 @@ func (M *MainWebApp) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.ResponseCode = "200"
-	response.Message = "File Uploaded"
+	response.Message = "Completed"
 	js, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

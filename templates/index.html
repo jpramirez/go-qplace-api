@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,minimum-scale=1">
 <meta name="description" content="Audio Professional Services. Editing."/>
-<title>Audio professional services</title>
+<title>Epyphite - Audio professional services</title>
 <script src="https://cdn.jsdelivr.net/npm/vue"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.min.js"></script>
 <style>
@@ -15,7 +15,7 @@ main {
 	width: 80%;
 	display: grid;
 	grid-column-gap: 1em;
-	grid-template-areas: "why video"
+	grid-template-areas: "why contact"
 	"product contact"
 	"count pricing"
 	"footer footer"
@@ -80,99 +80,62 @@ main {
 <body>
 <main>
 <div id="why">
-<h1>Why user our Service {{ .EmojiCountry }}?</h1>
+	<h1>Why use our Service {{ .EmojiCountry }}?</h1>
+	<p>You don't have to spend time editing audios, proofing, cutting. gazillion files anymore! <br> <strong> Epyphite Audio Solutions</strong></p>
 
-<p>You don't have to spend time editing audios, proofing, cutting. <br>z to manage? <strong>Serverless</strong></p>
+	<ul>
+		<li>Improve speed</li>
+		<li>Reduce costs</li>
+		<li>Reduce complexity</li>
+		<li>Reliable</li>
+		<li>Deliver to your customers Fast </li>
+	</ul>
 
-<ul>
-	<li>Improve security</li>
-	<li>Reduce costs</li>
-	<li>Reduce complexity</li>
-	<li>Scalable</li>
-	<li>Reliable</li>
-	<li>Deliver to your customers</li>
-</ul>
-
-And <strong>fast development iteration speeds</strong>!
-<!--
-<img src=https://s.natalian.org/2018-11-03/AWS_Certified_Logo_SOA_588x300_Black.png alt="AWS certified">
--->
+	And <strong>fast development iteration speeds</strong>!
 </div>
+
 <div id="contact">
-<h3> Test out  our Service</h3>
-<form id="UploadForm" v-on:submit.prevent="submitForm">
-<input required type=text name=name id="name" placeholder="Full name" autofocus>
-<input required type=email name=email id="email" placeholder="email@example.com">
-<input type=file id='files' name="files" placeholder="File to split">
-{{ .csrfField }}
-<br>
-<button class="button" id="button" type="submit">Send</button>
-</form>
+	<h3> Test our Service</h3>
+	<form id="UploadForm" v-on:submit.prevent="submitForm">
+	<input required type=text name=name id="name" placeholder="Full name" autofocus>
+	<input required type=email name=email id="email" placeholder="email@example.com">
+	<input type=file id='files' name="files" placeholder="File to split">
+	{{ .csrfField }}
+	<br>
+	<button class="button" id="button" type="submit">Send</button>
+	</form>
+	<p><strong>${ returnStatus }</strong></p>
+	<template v-if="returnURL != ''">
+	<a v-bind:href="returnURL"> Get your file here </a>
+	</template>
+
 </div>
-<!--
-<div id="video">
-<video poster="https://res.cloudinary.com/hendry/image/upload/f_auto,q_auto:eco/v1519267526/me_stj81s.jpg" width="640" height="360" controls src="https://s.natalian.org/2018-02-20/Goserverless.SG.mp4"></video>
-</div>
--->
 
 <div id="product">
+	<h3>Our Offering</h3>
 
-<h3>The product</h3>
+	<ul>
+	<li>Reduce your editing time</li>
+	<li>Professional services on a contract basis</li>
+	<li>Improve your recording efficiency iteration times</li>
+	</ul>
 
-<ul>
-<li>Reduce your AWS bill</li>
-<li>Professional services on a contract basis</li>
-<li>Improve your development iteration times</li>
-<li><abbr title="Amazon Web Service">AWS</abbr> accredited with extensive experience</li>
-</ul>
+	<p>Addressing pain points like:</p>
 
-<p>Addressing pain points like:</p>
-
-<ul>
-<li>High or unexpected AWS bills</li>
-<li>Re-architecting solutions for Serverless</li>
-<li>Continuous Integration / Continuous Deployment</li>
-<li>Testing</li>
-<li>Developing applications using AWS SDK APIs</li>
-<li>Multiple region handling</li>
-<li>Frustrated developers spending time on process and tools than on innovating</li>
-</ul>
-<!--
-<p>Connect on <a href="https://www.linkedin.com/in/kaihendry/">LinkedIn</a>, view <a href="https://hendry.iki.fi/cv/resume.html">my CV</a>, watch my <a
-	href="https://engineers.sg/episodes/search?search=kai+hendry">presentations</a>
-and <a href="https://www.youtube.com/playlist?list=PLiKgVPlhUNuxd4HSPoFBINxG53U5gmU6v">my videos on Serverless</a>.</p>
--->
+	<ul>
+	<li>Managing and cutting hundreds of files.</li>
+	<li>Listen over large audio files.</li>
+	<li>Consuming large amount of time to re cut.</li>
+	<li>Basic Proofing and QA </li>
+	<li>Multiple format handling</li>
+	<li>Distributing you samples and final audios to your customers</li>
+	</ul>
 </div>
-
-<div id="count">
-<h2>Serverless demo</h2>
-
-<table>
-<tr>
-<th>Rank</th>
-<th>Region name</th>
-</div>
-<!--
-<div id="pricing">
-
-<h3>Estimating serverless costs of this demo</h3>
-
-<p>Assuming an execution time of 100ms or less on minimum 128 lambda as this demo is configured and <strong>ignoring Free Tier</strong>.</p>
-
-<p><label>Number of requests: <input type=number v-model.number="requests"></label></p>
-
-<p><label>Estimated outbound bandwidth in GB<input type=number v-model.number="outbound"></label></p>
-<p><a href="https://aws.amazon.com/lambda/pricing/">Lambda</a>: $0.20 per 1 million requests = ${ requestcost }</p>
-<p>Lambda: $0.000000208 per &lt;= 100 ms request duration = ${ durationcost.toFixed(2) }</p>
-<p><a href="https://aws.amazon.com/api-gateway/pricing">API Gateway</a>: $4.25 per million = ${ gwcost }</p>
-<p>Outbound Data Transfer Costs: $0.12/GB = ${ outboundcost }</p>
-<p><strong>Total: ${ total } USD</strong></p>
--->
 </div>
 
 <footer>
 <hr>
-<p>A Quiet Place </p>
+<p> <strong> Epyphite Audio Solutions</strong></p>
 </footer>
 </main>
 
@@ -180,8 +143,13 @@ and <a href="https://www.youtube.com/playlist?list=PLiKgVPlhUNuxd4HSPoFBINxG53U5
 var app = new Vue({
 	delimiters: ['${', '}'],
 	el: '#contact',
+	data: {
+			returnStatus :"",
+			returnURL :""
+	},
 	methods: {
-	submitForm: function () {
+		submitForm: function () {
+			var self = this;
 
             /*
                 Add the form data we need to submit
@@ -201,65 +169,30 @@ var app = new Vue({
             };
 
             formData.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
-
-			console.log("Pass 1")
 			for( var i = 0; i < fileForm.files.length; i++ ){
 					let file = fileForm.files[i];
 					formData.append('files[' + i + ']', file);
 			}
-	
-				console.log(formData)
 			let url = '/api/v1/process/split/upload'
-			console.log("Pass 2")
-
 			axios.post( url,
 				formData,
-				).then(function(err){
-				console.log(err);
-				console.log('SUCCESS!!' + err);
+				).then(function(data, err){
+					console.log(data)
+					self.data = data;
+					self.returnStatus = self.data.data.FileStatus[0].Status
+					if (self.returnStatus != "Rejected") {
+						self.returnURL = "/api/v1/file/" +self.data.data.FileStatus[0].Hash;
+					}
+
+					
 				})
 				.catch(function(err){
-				console.log('FAILURE!!' + err);
+						self.returnStatus = "An error ocurred. Contact the owner :) "
 				});
 
 	}
 	}
 })
-
-var app = new Vue({
-	delimiters: ['${', '}'],
-	el: '#count',
-	data: {
-		regions: {}
-	},
-	methods: {
-		async goGet () {
-			//var response = await fetch("/rank");
-			//this.regions = await response.json();
-		}
-	},
-	created: function() {
-		this.goGet()
-	}
-})
-
-var app = new Vue({
-	delimiters: ['${', '}'],
-	el: '#pricing',
-	results: "",
-	data: {
-		requests: 100,
-		outbound: 0.01
-	},
-    computed: {
-		requestcost: function() { return this.requests * 0.20 / 1000000 },
-		durationcost: function() { return this.requests * 0.000000208 },
-		gwcost: function() { return this.requests * 0.00000425 },
-		outboundcost: function() { return this.outbound * 0.12 },
-		total: function() { return (this.requestcost + this.durationcost + this.gwcost + this.outboundcost).toFixed(2) }
-	}
-})
-
 </script>
 
 </body>
